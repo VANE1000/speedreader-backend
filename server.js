@@ -1,35 +1,44 @@
 const express = require('express');
-const axios = require('axios');
 const cors = require('cors');
+const multer = require('multer');
+const pdfParse = require('pdf-parse');
+const fetch = require('node-fetch');
 
 const app = express();
+const upload = multer({ storage: multer.memoryStorage() });
+
 app.use(cors());
 app.use(express.json());
 
-// Endpoint para recibir la URL y devolver el texto
-app.post('/get-text', async (req, res) => {
-    const { url } = req.body;
-    if(!url) return res.status(400).json({ error: "Falta la URL" });
-
+// ----------------- Extraer texto de PDF -----------------
+app.post('/upload-pdf', upload.single('pdf'), async (req, res) => {
     try {
-        const response = await axios.get(url);
-        const html = response.data;
-
-        // Extraer solo texto básico eliminando etiquetas HTML
-        const text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-                         .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-                         .replace(/<[^>]+>/g, ' ')
-                         .replace(/\s+/g, ' ')
-                         .trim();
-
-        res.json({ text });
+        const dataBuffer = req.file.buffer;
+        const data = await pdfParse(dataBuffer);
+        res.json({ text: data.text });
     } catch (err) {
-        res.status(500).json({ error: "No se pudo obtener el texto" });
+        console.error(err);
+        res.status(500).json({ error: 'Error procesando PDF' });
     }
 });
-app.get('/', (req, res) => {
-    res.send('El backend de Speed Reader está funcionando. Usa POST /get-text para obtener texto.');
+
+// ----------------- Extraer texto de URL -----------------
+app.post('/get-text', async (req, res) => {
+    const { url } = req.body;
+    try {
+        const response = await fetch(url);
+        const html = await response.text();
+        // Extraemos texto simple eliminando etiquetas
+        const text = html.replace(/<[^>]+>/g, ' ');
+        res.json({ text });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error obteniendo la URL' });
+    }
 });
 
+// Mensaje en la raíz
+app.get('/', (req, res) => res.send('Backend de Speed Reader funcionando'));
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
+app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
