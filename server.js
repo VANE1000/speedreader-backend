@@ -1,44 +1,36 @@
+// server.js
 const express = require('express');
-const cors = require('cors');
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
-const fetch = require('node-fetch');
+const cors = require('cors');
 
 const app = express();
-const upload = multer({ storage: multer.memoryStorage() });
+const PORT = process.env.PORT || 3000;
 
+// Permitir solicitudes desde cualquier origen (para el frontend)
 app.use(cors());
 app.use(express.json());
 
-// ----------------- Extraer texto de PDF -----------------
+// Configurar Multer para recibir archivos
+const upload = multer({ storage: multer.memoryStorage() });
+
+// Endpoint para subir PDF
 app.post('/upload-pdf', upload.single('pdf'), async (req, res) => {
     try {
-        const dataBuffer = req.file.buffer;
-        const data = await pdfParse(dataBuffer);
-        res.json({ text: data.text });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Error procesando PDF' });
-    }
-});
+        if (!req.file) return res.status(400).json({ error: 'No se subió ningún PDF' });
 
-// ----------------- Extraer texto de URL -----------------
-app.post('/get-text', async (req, res) => {
-    const { url } = req.body;
-    try {
-        const response = await fetch(url);
-        const html = await response.text();
-        // Extraemos texto simple eliminando etiquetas
-        const text = html.replace(/<[^>]+>/g, ' ');
+        const data = await pdfParse(req.file.buffer);
+        const text = data.text.replace(/\s+/g, ' ').trim(); // limpiar espacios extra
         res.json({ text });
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Error obteniendo la URL' });
+        res.status(500).json({ error: 'Error procesando el PDF' });
     }
 });
 
-// Mensaje en la raíz
-app.get('/', (req, res) => res.send('Backend de Speed Reader funcionando'));
+// Endpoint de prueba
+app.get('/', (req, res) => {
+    res.send('Servidor backend funcionando');
+});
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
+app.listen(PORT, () => console.log(`Servidor backend corriendo en http://localhost:${PORT}`));
