@@ -27,6 +27,9 @@ app.post('/get-text', async (req, res) => {
         res.status(500).json({ error: "No se pudo obtener el texto" });
     }
 });
+app.get('/', (req, res) => {
+    res.send('El backend de Speed Reader está funcionando. Usa POST /get-text para obtener texto.');
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en puerto ${PORT}`));
